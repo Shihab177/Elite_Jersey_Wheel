@@ -64,7 +64,7 @@
             filter: drop-shadow(0px 4px 5px rgba(0,0,0,0.4));
         }
 
-        /* Canvas fluid sizing to automatically shrink on small mobile viewports */
+        /* Canvas fluid sizing */
         canvas#wheel {
             width: 100% !important;
             height: 100% !important;
@@ -74,7 +74,7 @@
             transition: transform 10s cubic-bezier(0.1, 0.8, 0.1, 1);
         }
 
-        /* Fireworks/Confetti Canvas Overaly */
+        /* Fireworks/Confetti Canvas Overlay */
         #celebrationCanvas {
             position: fixed;
             top: 0;
@@ -113,7 +113,7 @@
             box-shadow: none;
         }
 
-        /* Winner Popup Responsive Modal */
+        /* Fully Responsive Winner Popup Modal */
         .modal {
             display: none;
             position: fixed;
@@ -121,45 +121,56 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             justify-content: center;
             align-items: center;
             z-index: 100;
-            padding: 15px;
+            padding: 10px; /* মোবাইল স্ক্রিনের জন্য চারপাশের স্পেস */
         }
 
         .modal-content {
             background: #222;
-            padding: 35px 25px;
+            padding: 30px 20px;
             border-radius: 15px;
             text-align: center;
             border: 3px solid #ff69b4;
             animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            max-width: 100%;
-            width: 380px;
+            width: 90%; /* মোবাইলে নিজে থেকে স্ক্রিনের ৯০% চওড়া হয়ে যাবে */
+            max-width: 380px; /* বড় স্ক্রিনে সর্বোচ্চ ৩৮০ পিক্সেল থাকবে */
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
 
         .modal-content h2 {
             font-size: 1.6rem;
             margin-bottom: 10px;
+            color: #ff69b4;
         }
 
         .winner-name {
-            font-size: 2.2rem;
+            font-size: 2rem;
             color: #00ffcc;
             font-weight: bold;
             margin: 15px 0;
-            word-wrap: break-word;
+            word-wrap: break-word; /* বড় নাম হলে ভেঙে নিচে নেমে আসবে, স্ক্রিন কাটবে না */
+            overflow-wrap: break-word;
+            line-height: 1.3;
         }
 
         .close-btn {
-            padding: 10px 25px;
-            background: #ff69b4;
+            padding: 12px 30px;
+            background: linear-gradient(45deg, #ff69b4, #ff1493);
             border: none;
             color: white;
-            border-radius: 5px;
+            border-radius: 25px;
             cursor: pointer;
             font-size: 1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(255, 105, 180, 0.3);
+            transition: transform 0.2s;
+        }
+        
+        .close-btn:hover {
+            transform: scale(1.05);
         }
 
         @keyframes popIn {
@@ -176,8 +187,14 @@
                 padding: 12px 32px;
                 font-size: 1rem;
             }
+            .modal-content {
+                padding: 25px 15px; /* ছোট মোবাইলে ভেতরের স্পেস একটু কমবে */
+            }
+            .modal-content h2 {
+                font-size: 1.4rem;
+            }
             .winner-name {
-                font-size: 1.8rem;
+                font-size: 1.6rem; /* ছোট মোবাইলে নাম সুন্দরভাবে দেখানোর জন্য সাইজ ফিক্সড */
             }
         }
     </style>
@@ -223,7 +240,7 @@
         let currentRotation = 0;
         const colors = ["#ff69b4", "#ffffff", "#222222"];
 
-        // বাজি (Confetti) সিস্টেম ভেরিয়েবল
+        // বাজি সিস্টেম
         const celebCanvas = document.getElementById("celebrationCanvas");
         const celebCtx = celebCanvas.getContext("2d");
         let particles = [];
@@ -284,7 +301,7 @@
 
         function spinWheel() {
             spinBtn.disabled = true;
-            stopCelebration(); // আগের বাজি সচল থাকলে তা রিসেট করবে
+            stopCelebration();
 
             const targetIndex = names.indexOf("SI A M"); 
             const segmentDegrees = 360 / totalSegments;
@@ -302,7 +319,6 @@
             currentRotation += extraSpins + distanceToMove;
             canvas.style.transform = `rotate(${currentRotation}deg)`;
 
-            // ঠিক ১০ সেকেন্ড পর উইনার দেখাবে এবং বাজি ফুটবে
             setTimeout(() => {
                 showWinner("SI A M");
                 startCelebration();
@@ -317,17 +333,17 @@
 
         function closeModal() {
             document.getElementById("winnerModal").style.display = "none";
-            stopCelebration(); // উইন্ডো বন্ধ করলে বাজি ফোটা বন্ধ হবে
+            stopCelebration();
         }
 
-        // --- বাজি বা আতশবাজির লজিক ---
+        // বাজি লজিক
         class Particle {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
                 this.size = Math.random() * 6 + 4;
                 this.speedX = Math.random() * 10 - 5;
-                this.speedY = Math.random() * -15 - 5; // ওপরের দিকে লঞ্চ হবে
+                this.speedY = Math.random() * -15 - 5;
                 this.gravity = 0.2;
                 this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
                 this.opacity = 1;
@@ -337,7 +353,7 @@
                 this.x += this.speedX;
                 this.y += this.speedY;
                 if (this.speedY > 0) {
-                    this.opacity -= 0.015; // নিচে নামার সময় আস্তে আস্তে মিলিয়ে যাবে
+                    this.opacity -= 0.015;
                 }
             }
             draw() {
@@ -361,13 +377,10 @@
             if (!isCelebrating) return;
             celebCtx.clearRect(0, 0, celebCanvas.width, celebCanvas.height);
 
-            // স্ক্রিনের নিচ থেকে এবং দুই পাশ থেকে অনবরত বাজি তৈরি হবে
             if (Math.random() < 0.4) {
-                // বাম দিক থেকে বাজি ফাটবে
                 for(let i=0; i<8; i++) {
                     particles.push(new Particle(celebCanvas.width * 0.15, celebCanvas.height));
                 }
-                // ডান দিক থেকে বাজি ফাটবে
                 for(let i=0; i<8; i++) {
                     particles.push(new Particle(celebCanvas.width * 0.85, celebCanvas.height));
                 }
