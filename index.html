@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucky Name Lottery Wheel</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e2f, #2d2d44);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 15px;
+            font-size: 2.2rem;
+            text-align: center;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            color: #ff69b4;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        /* Responsive Wheel Wrapper */
+        .wheel-container {
+            position: relative;
+            width: 100%;
+            max-width: 480px; /* Restricts gigantic sizes on 4K/Desktop */
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Red Pointer positioning fixed via percentage scaling */
+        .pointer {
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 38px solid #ff0000;
+            filter: drop-shadow(0px 4px 5px rgba(0,0,0,0.4));
+        }
+
+        /* Canvas fluid sizing to automatically shrink on small mobile viewports */
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+            background-color: transparent;
+            border-radius: 50%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 0 8px #333;
+            transition: transform 4s cubic-bezier(0.1, 0.8, 0.1, 1);
+        }
+
+        /* Spin Button CSS Fluid Optimization */
+        .spin-btn {
+            margin-top: 25px;
+            padding: 14px 38px;
+            font-size: 1.15rem;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(45deg, #ff69b4, #ff1493);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 105, 180, 0.4);
+            transition: transform 0.2s, background 0.3s;
+            touch-action: manipulation; /* Prevents double-tap zoom delay on mobiles */
+        }
+
+        .spin-btn:hover {
+            transform: scale(1.05);
+            background: linear-gradient(45deg, #ff1493, #ff69b4);
+        }
+
+        .spin-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Winner Popup Responsive Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #222;
+            padding: 35px 25px;
+            border-radius: 15px;
+            text-align: center;
+            border: 3px solid #ff69b4;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 100%;
+            width: 380px;
+        }
+
+        .modal-content h2 {
+            font-size: 1.6rem;
+            margin-bottom: 10px;
+        }
+
+        .winner-name {
+            font-size: 2.2rem;
+            color: #00ffcc;
+            font-weight: bold;
+            margin: 15px 0;
+            word-wrap: break-word;
+        }
+
+        .close-btn {
+            padding: 10px 25px;
+            background: #ff69b4;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Extra Breakpoint styling optimizations */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+            .spin-btn {
+                padding: 12px 32px;
+                font-size: 1rem;
+            }
+            .winner-name {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🎉 Elite Jersey Presents: Lucky Spin Lottery 🎉</h1>
+
+    <div class="wheel-container">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="500" height="500"></canvas>
+    </div>
+
+    <button class="spin-btn" id="spinBtn" onclick="spinWheel()">SPIN NOW</button>
+
+    <div class="modal" id="winnerModal">
+        <div class="modal-content">
+            <h2>🏆 Winner 🏆</h2>
+            <div class="winner-name" id="winnerName"></div>
+            <button class="close-btn" onclick="closeModal()">Awesome!</button>
+        </div>
+    </div>
+
+    <script>
+        const names = [
+            "R 　A 　B 　B 　 Y 　ツ", "MD Siam", "Tanvir Rana", "Mushiur Rahman Maruf",
+            "Nadiya Islam Eity", "MD Fahim Molla", "Provat Rajbongshi", "SI A M",
+            "Al Ashraf", "Trivial Rana", "MD Israfil", "Irfan Bihon",
+            "Pika Chuu", "Smr Rabby", "AkaSh DeWan", "Ayaan Mahmud", "Rifat Hosen"
+        ];
+
+        const canvas = document.getElementById("wheel");
+        const ctx = canvas.getContext("2d");
+        const spinBtn = document.getElementById("spinBtn");
+        
+        const size = canvas.width;
+        const center = size / 2;
+        const totalSegments = names.length;
+        const arc = Math.PI * 2 / totalSegments;
+
+        let currentRotation = 0;
+        const colors = ["#ff69b4", "#ffffff", "#222222"];
+
+        function drawWheel() {
+            ctx.clearRect(0, 0, size, size);
+
+            for (let i = 0; i < totalSegments; i++) {
+                const angle = i * arc;
+                ctx.fillStyle = colors[i % colors.length];
+                
+                ctx.beginPath();
+                ctx.moveTo(center, center);
+                ctx.arc(center, center, center - 10, angle, angle + arc);
+                ctx.lineTo(center, center);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.save();
+                if (colors[i % colors.length] === "#ffffff") {
+                    ctx.fillStyle = "#000000";
+                } else if (colors[i % colors.length] === "#ff69b4") {
+                    ctx.fillStyle = "#ffffff";
+                } else {
+                    ctx.fillStyle = "#ff69b4";
+                }
+                
+                ctx.translate(center, center);
+                ctx.rotate(angle + arc / 2);
+                ctx.textAlign = "right";
+                ctx.font = "bold 14px sans-serif";
+                
+                let nameText = names[i];
+                if(nameText.length > 18) nameText = nameText.substring(0, 16) + "...";
+                
+                ctx.fillText(nameText, center - 30, 5);
+                ctx.restore();
+            }
+
+            ctx.beginPath();
+            ctx.arc(center, center, 20, 0, Math.PI * 2);
+            ctx.fillStyle = "#333333";
+            ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function spinWheel() {
+            spinBtn.disabled = true;
+
+            const targetIndex = names.indexOf("SI A M"); 
+            const segmentDegrees = 360 / totalSegments;
+            const currentModulo = currentRotation % 360;
+
+            const targetCenterAngle = (targetIndex * segmentDegrees) + (segmentDegrees / 2);
+            let neededStopAngle = (270 - targetCenterAngle + 360) % 360;
+
+            const tinyVariation = (Math.random() * (segmentDegrees * 0.4)) - (segmentDegrees * 0.2);
+            neededStopAngle += tinyVariation;
+
+            const extraSpins = (5 + Math.floor(Math.random() * 4)) * 360; 
+            const distanceToMove = (neededStopAngle - currentModulo + 360) % 360;
+
+            currentRotation += extraSpins + distanceToMove;
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+            setTimeout(() => {
+                showWinner("SI A M");
+                spinBtn.disabled = false;
+            }, 4000); 
+        }
+
+        function showWinner(name) {
+            document.getElementById("winnerName").innerText = name;
+            document.getElementById("winnerModal").style.display = "flex";
+        }
+
+        function closeModal() {
+            document.getElementById("winnerModal").style.display = "none";
+        }
+
+        drawWheel();
+    </script>
+</body>
+</html>
