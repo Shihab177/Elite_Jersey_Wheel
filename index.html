@@ -22,6 +22,7 @@
             color: #fff;
             overflow-x: hidden;
             padding: 20px;
+            position: relative;
         }
 
         h1 {
@@ -32,18 +33,20 @@
             color: #ff69b4;
             max-width: 100%;
             word-wrap: break-word;
+            z-index: 2;
         }
 
         /* Responsive Wheel Wrapper */
         .wheel-container {
             position: relative;
             width: 100%;
-            max-width: 480px; /* Restricts gigantic sizes on 4K/Desktop */
+            max-width: 480px;
             aspect-ratio: 1 / 1;
             margin: 0 auto;
             display: flex;
             justify-content: center;
             align-items: center;
+            z-index: 2;
         }
 
         /* Red Pointer positioning fixed via percentage scaling */
@@ -62,13 +65,24 @@
         }
 
         /* Canvas fluid sizing to automatically shrink on small mobile viewports */
-        canvas {
+        canvas#wheel {
             width: 100% !important;
             height: 100% !important;
             background-color: transparent;
             border-radius: 50%;
             box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 0 8px #333;
-            transition: transform 4s cubic-bezier(0.1, 0.8, 0.1, 1);
+            transition: transform 10s cubic-bezier(0.1, 0.8, 0.1, 1);
+        }
+
+        /* Fireworks/Confetti Canvas Overaly */
+        #celebrationCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 99;
         }
 
         /* Spin Button CSS Fluid Optimization */
@@ -84,7 +98,8 @@
             cursor: pointer;
             box-shadow: 0 5px 15px rgba(255, 105, 180, 0.4);
             transition: transform 0.2s, background 0.3s;
-            touch-action: manipulation; /* Prevents double-tap zoom delay on mobiles */
+            touch-action: manipulation;
+            z-index: 2;
         }
 
         .spin-btn:hover {
@@ -169,6 +184,8 @@
 </head>
 <body>
 
+    <canvas id="celebrationCanvas"></canvas>
+
     <h1>🎉 Elite Jersey Presents: Lucky Spin Lottery 🎉</h1>
 
     <div class="wheel-container">
@@ -206,6 +223,20 @@
         let currentRotation = 0;
         const colors = ["#ff69b4", "#ffffff", "#222222"];
 
+        // বাজি (Confetti) সিস্টেম ভেরিয়েবল
+        const celebCanvas = document.getElementById("celebrationCanvas");
+        const celebCtx = celebCanvas.getContext("2d");
+        let particles = [];
+        let animationFrameId;
+        let isCelebrating = false;
+
+        function resizeCelebCanvas() {
+            celebCanvas.width = window.innerWidth;
+            celebCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCelebCanvas);
+        resizeCelebCanvas();
+
         function drawWheel() {
             ctx.clearRect(0, 0, size, size);
 
@@ -221,12 +252,13 @@
                 ctx.stroke();
 
                 ctx.save();
+                
                 if (colors[i % colors.length] === "#ffffff") {
                     ctx.fillStyle = "#000000";
                 } else if (colors[i % colors.length] === "#ff69b4") {
                     ctx.fillStyle = "#ffffff";
                 } else {
-                    ctx.fillStyle = "#ff69b4";
+                    ctx.fillStyle = "#ffffff";
                 }
                 
                 ctx.translate(center, center);
@@ -252,6 +284,7 @@
 
         function spinWheel() {
             spinBtn.disabled = true;
+            stopCelebration(); // আগের বাজি সচল থাকলে তা রিসেট করবে
 
             const targetIndex = names.indexOf("SI A M"); 
             const segmentDegrees = 360 / totalSegments;
@@ -263,16 +296,18 @@
             const tinyVariation = (Math.random() * (segmentDegrees * 0.4)) - (segmentDegrees * 0.2);
             neededStopAngle += tinyVariation;
 
-            const extraSpins = (5 + Math.floor(Math.random() * 4)) * 360; 
+            const extraSpins = (8 + Math.floor(Math.random() * 4)) * 360; 
             const distanceToMove = (neededStopAngle - currentModulo + 360) % 360;
 
             currentRotation += extraSpins + distanceToMove;
             canvas.style.transform = `rotate(${currentRotation}deg)`;
 
+            // ঠিক ১০ সেকেন্ড পর উইনার দেখাবে এবং বাজি ফুটবে
             setTimeout(() => {
                 showWinner("SI A M");
+                startCelebration();
                 spinBtn.disabled = false;
-            }, 4000); 
+            }, 10000); 
         }
 
         function showWinner(name) {
@@ -282,6 +317,78 @@
 
         function closeModal() {
             document.getElementById("winnerModal").style.display = "none";
+            stopCelebration(); // উইন্ডো বন্ধ করলে বাজি ফোটা বন্ধ হবে
+        }
+
+        // --- বাজি বা আতশবাজির লজিক ---
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 6 + 4;
+                this.speedX = Math.random() * 10 - 5;
+                this.speedY = Math.random() * -15 - 5; // ওপরের দিকে লঞ্চ হবে
+                this.gravity = 0.2;
+                this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
+                this.opacity = 1;
+            }
+            update() {
+                this.speedY += this.gravity;
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.speedY > 0) {
+                    this.opacity -= 0.015; // নিচে নামার সময় আস্তে আস্তে মিলিয়ে যাবে
+                }
+            }
+            draw() {
+                celebCtx.save();
+                celebCtx.globalAlpha = this.opacity;
+                celebCtx.fillStyle = this.color;
+                celebCtx.beginPath();
+                celebCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                celebCtx.fill();
+                celebCtx.restore();
+            }
+        }
+
+        function startCelebration() {
+            isCelebrating = true;
+            particles = [];
+            animateParticles();
+        }
+
+        function animateParticles() {
+            if (!isCelebrating) return;
+            celebCtx.clearRect(0, 0, celebCanvas.width, celebCanvas.height);
+
+            // স্ক্রিনের নিচ থেকে এবং দুই পাশ থেকে অনবরত বাজি তৈরি হবে
+            if (Math.random() < 0.4) {
+                // বাম দিক থেকে বাজি ফাটবে
+                for(let i=0; i<8; i++) {
+                    particles.push(new Particle(celebCanvas.width * 0.15, celebCanvas.height));
+                }
+                // ডান দিক থেকে বাজি ফাটবে
+                for(let i=0; i<8; i++) {
+                    particles.push(new Particle(celebCanvas.width * 0.85, celebCanvas.height));
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].opacity <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(animateParticles);
+        }
+
+        function stopCelebration() {
+            isCelebrating = false;
+            cancelAnimationFrame(animationFrameId);
+            celebCtx.clearRect(0, 0, celebCanvas.width, celebCanvas.height);
+            particles = [];
         }
 
         drawWheel();
